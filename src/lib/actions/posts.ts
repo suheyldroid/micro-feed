@@ -11,12 +11,14 @@ import { revalidatePath } from "next/cache";
 export interface PostsResponse {
 	posts: PostExtended[];
 	totalCount: number;
-	nextCursor?: string;
+	currentPage: number;
+	totalPages: number;
 	hasNextPage: boolean;
+	hasPrevPage: boolean;
 }
 
 export interface FetchPostsParams {
-	cursor?: string;
+	page?: number;
 	limit?: number;
 	search?: string;
 	filter?: FilterType;
@@ -283,7 +285,7 @@ export async function unlikePostAction(
 }
 
 export async function fetchPostsServerAction({
-	cursor,
+	page = 1,
 	limit = 5,
 	search,
 	filter = "all",
@@ -312,73 +314,75 @@ export async function fetchPostsServerAction({
         user_id,
         created_at
       )
-    `);
+    `, { count: 'exact' });
 
 		// Apply filters
 		if (filter === "mine") {
 			query = query.eq("author_id", user.id);
 		} else if (filter === "liked") {
+			const userLikes =
+				(await supabase.from("likes").select("post_id").eq("user_id", user.id))
+					.data ?? [];
 			query = query.in(
 				"id",
-				(
-					await supabase.from("likes").select("post_id").eq("user_id", user.id)
-				).data?.map((like) => like.post_id) ?? [],
+				userLikes.map((like) => like.post_id),
 			);
 		}
 
-		// Apply search
+		// Apply search - simple content search only for now
 		if (search?.trim()) {
-			query = query.or(
-				`content.ilike.%${search}%,profiles.username.ilike.%${search}%`,
-			);
+			// Simple content search - avoiding complex OR syntax issues
+			query = query.textSearch('content', search);
 		}
 
-		// Apply cursor-based pagination
-		if (cursor) {
-			query = query.lt("id", cursor); // Posts older than cursor
-		}
+		// Calculate offset for pagination
+		const from = (page - 1) * limit;
+		const to = from + limit - 1;
 
-		// Apply ordering and limit
-		const { data, error } = await query
-			.order("id", { ascending: false }) // Use ID for cursor stability
-			.limit(limit + 1); // Fetch one extra to check if there are more
+		// Apply ordering and pagination
+		const { data, error, count } = await query
+			.order("created_at", { ascending: false }) // Use created_at for proper chronological order
+			.order("id", { ascending: false }) // Secondary sort for tie-breaking
+			.range(from, to);
 
 		if (error) {
 			throw new Error(`Failed to fetch posts: ${error.message}`);
 		}
 
-		// Check if there are more posts
-		const hasNextPage = data && data.length > limit;
-		const postsData = hasNextPage ? data.slice(0, -1) : data; // Remove extra post
-
 		// Transform the data to match our PostExtended interface
-		const posts: PostExtended[] = postsData?.map((item) => ({
-			id: item.id,
-			content: item.content,
-			author_id: item.author_id,
-			author: {
-				id: item.profiles.id,
-				username: item.profiles.username,
-			},
-			created_at: item.created_at,
-			updated_at: item.updated_at,
-			likes: item.likes.map((like) => ({
-				post_id: item.id,
-				user_id: like.user_id,
-				created_at: like.created_at,
-			})),
-			like_count: item.likes?.length || 0,
-			isLiked: item.likes?.some((like) => like.user_id === user.id) || false,
-		})) || [];
+		const posts: PostExtended[] =
+			data?.map((item) => ({
+				id: item.id,
+				content: item.content,
+				author_id: item.author_id,
+				author: {
+					id: item.profiles.id,
+					username: item.profiles.username,
+				},
+				created_at: item.created_at,
+				updated_at: item.updated_at,
+				likes: item.likes.map((like) => ({
+					post_id: item.id,
+					user_id: like.user_id,
+					created_at: like.created_at,
+				})),
+				like_count: item.likes?.length || 0,
+				isLiked: item.likes?.some((like) => like.user_id === user.id) || false,
+			})) || [];
 
-		// Get next cursor (ID of the last post)
-		const nextCursor = hasNextPage && posts.length > 0 ? posts[posts.length - 1].id : undefined;
+		// Calculate pagination info
+		const totalCount = count || 0;
+		const totalPages = Math.ceil(totalCount / limit);
+		const hasNextPage = page < totalPages;
+		const hasPrevPage = page > 1;
 
 		return {
 			posts,
-			totalCount: posts.length, // For cursor pagination, we don't have total count
-			nextCursor,
+			totalCount,
+			currentPage: page,
+			totalPages,
 			hasNextPage,
+			hasPrevPage,
 		};
 	} catch (error) {
 		console.error("Fetch posts error:", error);

@@ -7,9 +7,10 @@ import { Loader2 } from "lucide-react";
 interface LoadMoreTriggerProps {
 	hasNextPage?: boolean;
 	isFetchingNextPage: boolean;
-	fetchNextPage: () => void;
+	fetchNextPage: () => Promise<unknown> | undefined;
 	autoLoad?: boolean;
 	className?: string;
+	error?: Error | null;
 }
 
 export function LoadMoreTrigger({
@@ -18,6 +19,7 @@ export function LoadMoreTrigger({
 	fetchNextPage,
 	autoLoad = true,
 	className = "",
+	error = null,
 }: LoadMoreTriggerProps) {
 	const { targetRef } = useInfiniteScroll({
 		hasNextPage,
@@ -27,8 +29,8 @@ export function LoadMoreTrigger({
 		rootMargin: "200px", // Start loading when 200px from viewport
 	});
 
-	// Don't render anything if there's no next page
-	if (!hasNextPage && !isFetchingNextPage) {
+	// Don't render anything if there's no next page and no error
+	if (!hasNextPage && !isFetchingNextPage && !error) {
 		return null;
 	}
 
@@ -37,7 +39,18 @@ export function LoadMoreTrigger({
 			ref={targetRef}
 			className={`flex justify-center items-center py-8 ${className}`}
 		>
-			{isFetchingNextPage ? (
+			{error ? (
+				<div className="text-center">
+					<p className="text-destructive text-sm mb-2">Failed to load more posts</p>
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={fetchNextPage}
+					>
+						Try Again
+					</Button>
+				</div>
+			) : isFetchingNextPage ? (
 				<div className="flex items-center gap-2 text-muted-foreground">
 					<Loader2 className="h-4 w-4 animate-spin" />
 					<span className="text-sm">Loading more posts...</span>

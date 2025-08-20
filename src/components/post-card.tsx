@@ -21,9 +21,10 @@ import { useState } from "react";
 
 interface PostCardProps {
 	post: PostExtended;
+	onEdit: (post: PostExtended) => void;
 }
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post, onEdit }: PostCardProps) {
 	const { user } = useAuth();
 	const { toggleLike, isLoading: isLikeLoading } = useLike();
 	const { deletePost: mutateDeletePost } = useMutatePost({});
@@ -39,9 +40,7 @@ export function PostCard({ post }: PostCardProps) {
 	};
 
 	const handleEdit = () => {
-		// This will be handled by parent component
-		// We could emit an event or use a global state
-		console.log("Edit post:", post.id);
+		onEdit(post);
 	};
 
 	const handleDelete = async () => {

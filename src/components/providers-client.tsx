@@ -23,8 +23,6 @@ export function ProvidersClient({
 	children,
 	initialUser,
 }: ProvidersClientProps) {
-	console.log("initialUser", initialUser);
-
 	return (
 		<QueryClientProvider client={queryClient}>
 			<AuthProvider value={{ user: initialUser }}>{children}</AuthProvider>

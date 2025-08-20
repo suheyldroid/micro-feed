@@ -72,8 +72,6 @@ export async function login({
 	email,
 	password,
 }: LoginFormData): Promise<ActionResult> {
-	console.log("login");
-
 	try {
 		const supabase = await createServerSupabaseClient();
 

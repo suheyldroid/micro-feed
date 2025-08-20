@@ -1,8 +1,8 @@
 import { useAuth } from "@/contexts/auth-context";
-import { createPostAction, deletePostAction, updatePostAction, type PostsResponse } from "@/lib/actions/posts";
-import type { FilterType, PostExtended, PostFormData } from "@/types";
-import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { useQueryStates } from "nuqs";
+import { createPostAction, deletePostAction, updatePostAction } from "@/lib/actions/posts";
+import type { PostFormData } from "@/types";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 
 interface UseMutatePostOptions {
 	onSuccess?: () => void;
@@ -12,36 +12,15 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 	const { user } = useAuth();
 	const queryClient = useQueryClient();
 
-	// URL query state'leri al
-	const [{ search }] = useQueryStates({
-		search: { defaultValue: "", serialize: (value) => value, parse: (value) => value },
-		filter: { defaultValue: "all" as FilterType, serialize: (value) => value, parse: (value) => value as FilterType },
-	});
-
-	// Tüm filter'lar için query key'leri oluştur
-	const allQueryKeys = [
-		["posts", user?.id, search, "all" as FilterType],
-		["posts", user?.id, search, "mine" as FilterType],
-		["posts", user?.id, search, "liked" as FilterType],
-	];
-
-	// Helper function to update infinite query data
-	const updateInfiniteQueryData = (
-		queryKey: string[],
-		updateFn: (posts: PostExtended[]) => PostExtended[]
-	) => {
-		queryClient.setQueryData(queryKey, (oldData: InfiniteData<PostsResponse>) => {
-			if (!oldData) return oldData;
-
-			return {
-				...oldData,
-				pages: oldData.pages.map(page => ({
-					...page,
-					posts: updateFn(page.posts),
-				})),
-			};
+	// Invalidate all posts queries - simpler and more reliable
+	const invalidatePostsQueries = useCallback(() => {
+		queryClient.invalidateQueries({
+			queryKey: ["posts", user?.id],
+			exact: false
 		});
-	};
+	}, [queryClient, user?.id]);
+
+
 
 	// Create post mutation
 	const createPostMutation = useMutation({
@@ -55,17 +34,9 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 			}
 			return result.data;
 		},
-		onSuccess: (newPost) => {
-			// Update all relevant infinite queries
-			allQueryKeys.forEach(queryKey => {
-				const [, , , filterType] = queryKey;
-				
-				// Only add to queries that should include this post
-				if (filterType === "all" || (filterType === "mine" && newPost.author_id === user?.id)) {
-					updateInfiniteQueryData(queryKey, (posts) => [newPost, ...posts]);
-				}
-			});
-			
+		onSuccess: () => {
+			// Invalidate all posts queries to refetch fresh data
+			invalidatePostsQueries();
 			onSuccess?.();
 		},
 	});
@@ -82,16 +53,9 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 			}
 			return result.data;
 		},
-		onSuccess: (updatedPost) => {
-			// Update all infinite queries
-			allQueryKeys.forEach(queryKey => {
-				updateInfiniteQueryData(queryKey, (posts) =>
-					posts.map((post: PostExtended) =>
-						post.id === updatedPost.id ? { ...updatedPost, isLiked: post.isLiked, like_count: post.like_count, likes: post.likes } : post
-					)
-				);
-			});
-			
+		onSuccess: () => {
+			// Invalidate all posts queries to refetch fresh data
+			invalidatePostsQueries();
 			onSuccess?.();
 		},
 	});
@@ -105,13 +69,9 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 			}
 			return postId;
 		},
-		onSuccess: (deletedPostId) => {
-			// Remove from all infinite queries
-			allQueryKeys.forEach(queryKey => {
-				updateInfiniteQueryData(queryKey, (posts) =>
-					posts.filter((post: PostExtended) => post.id !== deletedPostId)
-				);
-			});
+		onSuccess: () => {
+			// Invalidate all posts queries to refetch fresh data
+			invalidatePostsQueries();
 		},
 	});
 

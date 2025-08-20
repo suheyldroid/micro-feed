@@ -5,6 +5,7 @@ import { LoadMoreTrigger } from "@/components/load-more-trigger";
 import { PostCard } from "@/components/post-card";
 import { PostSkeletonList } from "@/components/post-skeleton";
 import { Toolbar } from "@/components/toolbar";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
 import { usePosts } from "@/hooks/use-posts";
 import type { FilterType, PostExtended } from "@/types";
@@ -19,11 +20,14 @@ export function Feed() {
 	const { 
 		posts, 
 		isLoadingPosts, 
+		isError,
+		error,
 		search, 
 		filter, 
 		fetchNextPage, 
 		hasNextPage, 
-		isFetchingNextPage 
+		isFetchingNextPage,
+		refetch
 	} = usePosts();
 
 	// nuqs query state setter'ları
@@ -37,8 +41,13 @@ export function Feed() {
 		setComposerOpen(true);
 	};
 
+	const handleEditPost = (post: PostExtended) => {
+		setEditingPost(post);
+		setComposerOpen(true);
+	};
+
 	if (!user) {
-		return null; // This shouldn't happen as Feed is only rendered when authenticated
+		return null;
 	}
 
 	return (
@@ -53,7 +62,19 @@ export function Feed() {
 				/>
 
 				<div className="p-4 space-y-4">
-					{isLoadingPosts ? (
+					{isError ? (
+						<div className="text-center py-12">
+							<div className="mb-4">
+								<p className="text-destructive font-medium">Failed to load posts</p>
+								<p className="text-muted-foreground text-sm mt-1">
+									{error?.message || "Something went wrong. Please try again."}
+								</p>
+							</div>
+							<Button variant="outline" onClick={() => refetch()}>
+								Try Again
+							</Button>
+						</div>
+					) : isLoadingPosts ? (
 						<PostSkeletonList count={5} />
 					) : posts.length === 0 ? (
 						<div className="text-center py-12">
@@ -69,10 +90,12 @@ export function Feed() {
 						</div>
 					) : (
 						<>
+							
 							{posts.map((post) => (
 								<PostCard
 									key={post.id}
 									post={post}
+									onEdit={handleEditPost}
 								/>
 							))}
 							
@@ -82,6 +105,7 @@ export function Feed() {
 								isFetchingNextPage={isFetchingNextPage}
 								fetchNextPage={fetchNextPage}
 								autoLoad={true}
+								error={error}
 							/>
 						</>
 					)}

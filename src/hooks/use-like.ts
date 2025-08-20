@@ -7,7 +7,7 @@ import {
 import type { FilterType, PostExtended } from "@/types";
 import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 export function useLike() {
 	const { user } = useAuth();
@@ -18,7 +18,7 @@ export function useLike() {
 	const pendingMutationsRef = useRef<Set<string>>(new Set());
 
 	// Helper function to update infinite query data
-	const updateInfiniteQueryData = (
+	const updateInfiniteQueryData = useCallback((
 		queryKey: string[],
 		updateFn: (posts: PostExtended[]) => PostExtended[]
 	) => {
@@ -33,28 +33,7 @@ export function useLike() {
 				})),
 			};
 		});
-	};
-
-	// Debounced invalidate function - only when no mutations are pending
-	const debouncedInvalidate = () => {
-		if (invalidateTimeoutRef.current) {
-			clearTimeout(invalidateTimeoutRef.current);
-		}
-
-		invalidateTimeoutRef.current = setTimeout(() => {
-			// Only invalidate if no mutations are pending
-			if (pendingMutationsRef.current.size === 0) {
-				// Invalidate only the first page of each query to refresh like counts
-				allQueryKeys.forEach(queryKey => {
-					queryClient.refetchQueries({ 
-						queryKey, 
-						type: 'active',
-						refetchPage: (_page, index) => index === 0 // Only refetch first page
-					});
-				});
-			}
-		}, 500); // Increased to 500ms
-	};
+	}, [queryClient]);
 
 	// Cleanup on unmount
 	useEffect(() => {
@@ -79,12 +58,33 @@ export function useLike() {
 		},
 	});
 
-	// Tüm filter'lar için query key'leri oluştur
-	const allQueryKeys = [
+	// Tüm filter'lar için query key'leri oluştur - memoized for stability
+	const allQueryKeys = useMemo(() => [
 		["posts", user?.id, search, "all" as FilterType],
 		["posts", user?.id, search, "mine" as FilterType],
 		["posts", user?.id, search, "liked" as FilterType],
-	];
+	] as const, [user?.id, search]);
+
+	// Debounced invalidate function - only when no mutations are pending
+	const debouncedInvalidate = useCallback(() => {
+		if (invalidateTimeoutRef.current) {
+			clearTimeout(invalidateTimeoutRef.current);
+		}
+
+		invalidateTimeoutRef.current = setTimeout(() => {
+			// Only invalidate if no mutations are pending
+			if (pendingMutationsRef.current.size === 0) {
+				// Invalidate only the first page of each query to refresh like counts
+				allQueryKeys.forEach(queryKey => {
+					queryClient.refetchQueries({ 
+						queryKey, 
+						type: 'active',
+						refetchPage: (_page, index) => index === 0 // Only refetch first page
+					});
+				});
+			}
+		}, 500); // Increased to 500ms
+	}, [allQueryKeys, queryClient]);
 
 	const toggleLikeMutation = useMutation({
 		mutationFn: async (post: PostExtended) => {

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from "react";
 interface UseInfiniteScrollOptions {
 	hasNextPage?: boolean;
 	isFetchingNextPage: boolean;
-	fetchNextPage: () => void;
+	fetchNextPage: () => Promise<unknown> | undefined;
 	rootMargin?: string;
 	threshold?: number;
 	enabled?: boolean;
@@ -20,6 +20,8 @@ export function useInfiniteScroll({
 	const targetRef = useRef<HTMLDivElement>(null);
 	const observerRef = useRef<IntersectionObserver | null>(null);
 
+	const isLoadingRef = useRef(false);
+
 	const handleIntersection = useCallback(
 		(entries: IntersectionObserverEntry[]) => {
 			const [entry] = entries;
@@ -28,9 +30,18 @@ export function useInfiniteScroll({
 				entry?.isIntersecting &&
 				hasNextPage &&
 				!isFetchingNextPage &&
+				!isLoadingRef.current &&
 				enabled
 			) {
-				fetchNextPage();
+				isLoadingRef.current = true;
+				const result = fetchNextPage();
+				if (result && typeof result.finally === 'function') {
+					result.finally(() => {
+						isLoadingRef.current = false;
+					});
+				} else {
+					isLoadingRef.current = false;
+				}
 			}
 		},
 		[hasNextPage, isFetchingNextPage, fetchNextPage, enabled]
@@ -59,18 +70,10 @@ export function useInfiniteScroll({
 		return () => {
 			if (observerRef.current) {
 				observerRef.current.disconnect();
+				observerRef.current = null;
 			}
 		};
 	}, [handleIntersection, rootMargin, threshold, enabled]);
-
-	// Cleanup on unmount
-	useEffect(() => {
-		return () => {
-			if (observerRef.current) {
-				observerRef.current.disconnect();
-			}
-		};
-	}, []);
 
 	return {
 		targetRef,

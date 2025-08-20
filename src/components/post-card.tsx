@@ -15,6 +15,7 @@ import { useMutatePost } from "@/hooks/use-mutate-post";
 import { deletePostAction } from "@/lib/actions/posts";
 import type { PostExtended } from "@/types";
 import { formatDistanceToNow } from "date-fns";
+import { motion } from "framer-motion";
 import { Edit, Heart, MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -58,8 +59,20 @@ export function PostCard({ post }: PostCardProps) {
 
 	return (
 		<>
-			<Card className="w-full">
-				<CardContent className="p-4">
+			<motion.div
+				initial={{ opacity: 0, y: 20 }}
+				animate={{
+					opacity: post.isRemoving ? 0 : 1,
+					y: post.isRemoving ? -20 : 0,
+					x: post.isRemoving ? 100 : 0,
+					scale: post.isRemoving ? 0.95 : 1,
+					height: post.isRemoving ? 0 : "auto",
+				}}
+				transition={{ duration: 0.3, ease: "easeInOut" }}
+				style={{ overflow: "hidden" }}
+			>
+				<Card className="w-full">
+					<CardContent className="p-4">
 					<div className="space-y-3">
 						{/* Header */}
 						<div className="flex items-start justify-between">
@@ -120,13 +133,39 @@ export function PostCard({ post }: PostCardProps) {
 									isLiked ? "text-red-500 hover:text-red-600" : ""
 								}`}
 							>
-								<Heart className={`h-4 w-4 ${isLiked ? "fill-current" : ""}`} />
-								{likeCount > 0 && <span className="text-sm">{likeCount}</span>}
+								<motion.div
+									animate={{
+										scale: isLiked ? 1.2 : 1,
+										color: isLiked ? "#ef4444" : "#6b7280"
+									}}
+									transition={{ duration: 0.2, ease: "easeInOut" }}
+								>
+									<Heart className={`h-4 w-4 transition-all duration-200 ${
+										isLiked ? "fill-current" : ""
+									} ${
+										isLikeLoading ? "animate-pulse" : ""
+									}`} />
+								</motion.div>
+								{likeCount > 0 && (
+									<motion.span
+										className="text-sm"
+										initial={{ opacity: 0, y: 10 }}
+										animate={{
+											opacity: 1,
+											y: 0,
+											color: isLiked ? "#ef4444" : "#6b7280"
+										}}
+										transition={{ duration: 0.2, ease: "easeInOut" }}
+									>
+										{likeCount}
+									</motion.span>
+								)}
 							</Button>
 						</div>
 					</div>
 				</CardContent>
 			</Card>
+			</motion.div>
 
 			{/* Delete Confirmation Modal */}
 			<ConfirmModal

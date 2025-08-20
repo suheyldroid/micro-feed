@@ -15,15 +15,20 @@ export function useLike() {
 
 	// Debounce invalidate
 	const invalidateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const pendingMutationsRef = useRef<Set<string>>(new Set());
 
-	// Debounced invalidate function
+	// Debounced invalidate function - only when no mutations are pending
 	const debouncedInvalidate = () => {
 		if (invalidateTimeoutRef.current) {
 			clearTimeout(invalidateTimeoutRef.current);
 		}
+
 		invalidateTimeoutRef.current = setTimeout(() => {
-			queryClient.invalidateQueries({ queryKey: ["posts"] });
-		}, 300); // 300ms debounce
+			// Only invalidate if no mutations are pending
+			if (pendingMutationsRef.current.size === 0) {
+				queryClient.invalidateQueries({ queryKey: ["posts"] });
+			}
+		}, 500); // Increased to 500ms
 	};
 
 	// Cleanup on unmount
@@ -58,18 +63,27 @@ export function useLike() {
 
 	const toggleLikeMutation = useMutation({
 		mutationFn: async (post: PostExtended) => {
-			let result: { success: boolean; error?: string };
-			if (post.isLiked) {
-				result = await unlikePostAction(post.id);
-			} else {
-				result = await likePostAction(post.id);
-			}
+			// Add to pending mutations
+			const mutationKey = `${post.id}-${post.isLiked ? 'unlike' : 'like'}`;
+			pendingMutationsRef.current.add(mutationKey);
 
-			if (!result.success) {
-				throw new Error(result.error || "Failed to toggle like");
-			}
+			try {
+				let result: { success: boolean; error?: string };
+				if (post.isLiked) {
+					result = await unlikePostAction(post.id);
+				} else {
+					result = await likePostAction(post.id);
+				}
 
-			return post;
+				if (!result.success) {
+					throw new Error(result.error || "Failed to toggle like");
+				}
+
+				return post;
+			} finally {
+				// Remove from pending mutations
+				pendingMutationsRef.current.delete(mutationKey);
+			}
 		},
 		onMutate: async (post) => {
 			// Cancel outgoing refetches
@@ -122,10 +136,14 @@ export function useLike() {
 								};
 							}
 						} else {
-							// Unlike ediliyorsa, listeden kaldır
+							// Unlike ediliyorsa, önce animasyon için isRemoving true yap
 							return {
 								...oldData,
-								posts: oldData.posts.filter((p: PostExtended) => p.id !== post.id),
+								posts: oldData.posts.map((p: PostExtended) =>
+									p.id === post.id
+										? { ...p, isRemoving: true }
+										: p
+								),
 							};
 						}
 					}
@@ -143,11 +161,25 @@ export function useLike() {
 			// Return a context object with the snapshotted values
 			return { previousData };
 		},
-		onSuccess: () => {
+		onSuccess: (_, variables) => {
 			// Server'dan güncel veri almak için debounced invalidate kullan
 			debouncedInvalidate();
+
+			// Liked filter'da unlike yapıldıysa, animasyon sonrası post'u kaldır
+			const currentFilter = filter; // URL'den gelen filter
+			if (currentFilter === "liked" && !variables.isLiked) {
+				setTimeout(() => {
+					queryClient.setQueryData(
+						["posts", user?.id, search, "liked"],
+						(oldData: PostsResponse) => ({
+							...oldData,
+							posts: oldData.posts.filter((p: PostExtended) => p.id !== variables.id),
+						})
+					);
+				}, 300); // Animation süresi kadar bekle
+			}
 		},
-		onError: (_, __, context) => {
+		onError: (_, variables, context) => {
 			// Tüm query'leri eski hallerine döndür
 			if (context?.previousData) {
 				context.previousData.forEach(({ key, data }) => {
@@ -155,6 +187,21 @@ export function useLike() {
 						queryClient.setQueryData(key, data);
 					}
 				});
+			}
+
+			// Hata durumunda isRemoving flag'ini temizle
+			if (variables && !variables.isLiked) {
+				queryClient.setQueryData(
+					["posts", user?.id, search, "liked"],
+					(oldData: PostsResponse) => ({
+						...oldData,
+						posts: oldData.posts.map((p: PostExtended) =>
+							p.id === variables.id
+								? { ...p, isRemoving: false }
+								: p
+						),
+					})
+				);
 			}
 		},
 	});

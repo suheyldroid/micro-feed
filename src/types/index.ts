@@ -13,6 +13,7 @@ export type PostExtended = Post & {
 	isLiked: boolean;
 	like_count: number;
 	likes: Like[];
+	isRemoving?: boolean; // For smooth removal animation
 };
 
 export type FilterType = "all" | "mine" | "liked";

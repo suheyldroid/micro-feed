@@ -1,20 +1,30 @@
 "use client";
 
 import { Composer } from "@/components/composer";
+import { LoadMoreTrigger } from "@/components/load-more-trigger";
 import { PostCard } from "@/components/post-card";
+import { PostSkeletonList } from "@/components/post-skeleton";
 import { Toolbar } from "@/components/toolbar";
 import { useAuth } from "@/contexts/auth-context";
 import { usePosts } from "@/hooks/use-posts";
-import type { FilterType, Post } from "@/types";
+import type { FilterType, PostExtended } from "@/types";
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
 
 export function Feed() {
 	const { user } = useAuth();
 	const [composerOpen, setComposerOpen] = useState(false);
-	const [editingPost, setEditingPost] = useState<Post | undefined>();
+	const [editingPost, setEditingPost] = useState<PostExtended | undefined>();
 
-	const { posts, isLoadingPosts, search, filter } = usePosts();
+	const { 
+		posts, 
+		isLoadingPosts, 
+		search, 
+		filter, 
+		fetchNextPage, 
+		hasNextPage, 
+		isFetchingNextPage 
+	} = usePosts();
 
 	// nuqs query state setter'ları
 	const [, setQueryStates] = useQueryStates({
@@ -44,10 +54,7 @@ export function Feed() {
 
 				<div className="p-4 space-y-4">
 					{isLoadingPosts ? (
-						<div className="text-center py-12">
-							<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-							<p className="text-muted-foreground">Loading posts...</p>
-						</div>
+						<PostSkeletonList count={5} />
 					) : posts.length === 0 ? (
 						<div className="text-center py-12">
 							<p className="text-muted-foreground">
@@ -61,12 +68,22 @@ export function Feed() {
 							</p>
 						</div>
 					) : (
-						posts.map((post) => (
-							<PostCard
-								key={post.id}
-								post={post}
+						<>
+							{posts.map((post) => (
+								<PostCard
+									key={post.id}
+									post={post}
+								/>
+							))}
+							
+							{/* Infinite scroll trigger */}
+							<LoadMoreTrigger
+								hasNextPage={hasNextPage}
+								isFetchingNextPage={isFetchingNextPage}
+								fetchNextPage={fetchNextPage}
+								autoLoad={true}
 							/>
-						))
+						</>
 					)}
 				</div>
 			</div>

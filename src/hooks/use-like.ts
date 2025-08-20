@@ -1,11 +1,11 @@
 import { useAuth } from "@/contexts/auth-context";
 import {
-	likePostAction,
-	unlikePostAction,
-	type PostsResponse,
+    likePostAction,
+    unlikePostAction,
+    type PostsResponse,
 } from "@/lib/actions/posts";
 import type { FilterType, PostExtended } from "@/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 import { useEffect, useRef } from "react";
 
@@ -17,6 +17,24 @@ export function useLike() {
 	const invalidateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const pendingMutationsRef = useRef<Set<string>>(new Set());
 
+	// Helper function to update infinite query data
+	const updateInfiniteQueryData = (
+		queryKey: string[],
+		updateFn: (posts: PostExtended[]) => PostExtended[]
+	) => {
+		queryClient.setQueryData(queryKey, (oldData: InfiniteData<PostsResponse>) => {
+			if (!oldData) return oldData;
+
+			return {
+				...oldData,
+				pages: oldData.pages.map(page => ({
+					...page,
+					posts: updateFn(page.posts),
+				})),
+			};
+		});
+	};
+
 	// Debounced invalidate function - only when no mutations are pending
 	const debouncedInvalidate = () => {
 		if (invalidateTimeoutRef.current) {
@@ -26,7 +44,14 @@ export function useLike() {
 		invalidateTimeoutRef.current = setTimeout(() => {
 			// Only invalidate if no mutations are pending
 			if (pendingMutationsRef.current.size === 0) {
-				queryClient.invalidateQueries({ queryKey: ["posts"] });
+				// Invalidate only the first page of each query to refresh like counts
+				allQueryKeys.forEach(queryKey => {
+					queryClient.refetchQueries({ 
+						queryKey, 
+						type: 'active',
+						refetchPage: (_page, index) => index === 0 // Only refetch first page
+					});
+				});
 			}
 		}, 500); // Increased to 500ms
 	};
@@ -86,8 +111,8 @@ export function useLike() {
 			}
 		},
 		onMutate: async (post) => {
-			// Cancel outgoing refetches
-			await queryClient.cancelQueries({ queryKey: allQueryKeys });
+			// Cancel outgoing refetches for all query keys
+			await Promise.all(allQueryKeys.map(key => queryClient.cancelQueries({ queryKey: key })));
 
 			// Snapshot the previous value for all queries
 			const previousData = allQueryKeys.map(key => ({
@@ -117,45 +142,41 @@ export function useLike() {
 						],
 			};
 
-			// Update all queries optimistically
+			// Update all infinite queries optimistically
 			allQueryKeys.forEach(queryKey => {
 				const [, , , filterType] = queryKey;
 
-				queryClient.setQueryData(queryKey, (oldData: PostsResponse) => {
-					if (!oldData) return oldData;
-
-					if (filterType === "liked") {
-						// Liked filter için özel logic
-						if (updatedPost.isLiked) {
-							// Like ediliyorsa, listeye ekle (eğer yoksa)
-							const exists = oldData.posts.some(p => p.id === post.id);
+				if (filterType === "liked") {
+					// Liked filter için özel logic
+					if (updatedPost.isLiked) {
+						// Like ediliyorsa, listeye ekle (eğer yoksa)
+						updateInfiniteQueryData(queryKey, (posts) => {
+							const exists = posts.some(p => p.id === post.id);
 							if (!exists) {
-								return {
-									...oldData,
-									posts: [updatedPost, ...oldData.posts],
-								};
+								return [updatedPost, ...posts];
 							}
-						} else {
-							// Unlike ediliyorsa, önce animasyon için isRemoving true yap
-							return {
-								...oldData,
-								posts: oldData.posts.map((p: PostExtended) =>
-									p.id === post.id
-										? { ...p, isRemoving: true }
-										: p
-								),
-							};
-						}
+							return posts.map((p: PostExtended) =>
+								p.id === post.id ? updatedPost : p
+							);
+						});
+					} else {
+						// Unlike ediliyorsa, önce animasyon için isRemoving true yap
+						updateInfiniteQueryData(queryKey, (posts) =>
+							posts.map((p: PostExtended) =>
+								p.id === post.id
+									? { ...p, isRemoving: true }
+									: p
+							)
+						);
 					}
-
+				} else {
 					// Diğer filter'lar için normal update
-					return {
-						...oldData,
-						posts: oldData.posts.map((p: PostExtended) =>
-							p.id === post.id ? updatedPost : p,
-						),
-					};
-				});
+					updateInfiniteQueryData(queryKey, (posts) =>
+						posts.map((p: PostExtended) =>
+							p.id === post.id ? updatedPost : p
+						)
+					);
+				}
 			});
 
 			// Return a context object with the snapshotted values
@@ -169,12 +190,9 @@ export function useLike() {
 			const currentFilter = filter; // URL'den gelen filter
 			if (currentFilter === "liked" && !variables.isLiked) {
 				setTimeout(() => {
-					queryClient.setQueryData(
+					updateInfiniteQueryData(
 						["posts", user?.id, search, "liked"],
-						(oldData: PostsResponse) => ({
-							...oldData,
-							posts: oldData.posts.filter((p: PostExtended) => p.id !== variables.id),
-						})
+						(posts) => posts.filter((p: PostExtended) => p.id !== variables.id)
 					);
 				}, 300); // Animation süresi kadar bekle
 			}
@@ -191,16 +209,13 @@ export function useLike() {
 
 			// Hata durumunda isRemoving flag'ini temizle
 			if (variables && !variables.isLiked) {
-				queryClient.setQueryData(
+				updateInfiniteQueryData(
 					["posts", user?.id, search, "liked"],
-					(oldData: PostsResponse) => ({
-						...oldData,
-						posts: oldData.posts.map((p: PostExtended) =>
-							p.id === variables.id
-								? { ...p, isRemoving: false }
-								: p
-						),
-					})
+					(posts) => posts.map((p: PostExtended) =>
+						p.id === variables.id
+							? { ...p, isRemoving: false }
+							: p
+					)
 				);
 			}
 		},

@@ -5,16 +5,18 @@ import {
 	createServerSupabaseClient,
 } from "@/lib/supabase-server";
 import { type PostFormData, postSchema } from "@/lib/validations";
-import type { FilterType, Post, PostExtended } from "@/types";
+import type { FilterType, PostExtended } from "@/types";
 import { revalidatePath } from "next/cache";
 
 export interface PostsResponse {
 	posts: PostExtended[];
 	totalCount: number;
+	nextCursor?: string;
+	hasNextPage: boolean;
 }
 
 export interface FetchPostsParams {
-	page?: number;
+	cursor?: string;
 	limit?: number;
 	search?: string;
 	filter?: FilterType;
@@ -23,7 +25,7 @@ export interface FetchPostsParams {
 interface PostActionResult {
 	success: boolean;
 	error?: string;
-	data?: Post;
+	data?: PostExtended;
 }
 
 interface DeleteActionResult {
@@ -281,8 +283,8 @@ export async function unlikePostAction(
 }
 
 export async function fetchPostsServerAction({
-	page = 1,
-	limit = 20,
+	cursor,
+	limit = 5,
 	search,
 	filter = "all",
 }: FetchPostsParams): Promise<PostsResponse> {
@@ -331,17 +333,26 @@ export async function fetchPostsServerAction({
 			);
 		}
 
-		// Apply pagination and ordering
-		const { data, error, count } = await query
-			.order("created_at", { ascending: false })
-			.range((page - 1) * limit, page * limit - 1);
+		// Apply cursor-based pagination
+		if (cursor) {
+			query = query.lt("id", cursor); // Posts older than cursor
+		}
+
+		// Apply ordering and limit
+		const { data, error } = await query
+			.order("id", { ascending: false }) // Use ID for cursor stability
+			.limit(limit + 1); // Fetch one extra to check if there are more
 
 		if (error) {
 			throw new Error(`Failed to fetch posts: ${error.message}`);
 		}
 
+		// Check if there are more posts
+		const hasNextPage = data && data.length > limit;
+		const postsData = hasNextPage ? data.slice(0, -1) : data; // Remove extra post
+
 		// Transform the data to match our PostExtended interface
-		const posts: PostExtended[] = data?.map((item) => ({
+		const posts: PostExtended[] = postsData?.map((item) => ({
 			id: item.id,
 			content: item.content,
 			author_id: item.author_id,
@@ -358,11 +369,16 @@ export async function fetchPostsServerAction({
 			})),
 			like_count: item.likes?.length || 0,
 			isLiked: item.likes?.some((like) => like.user_id === user.id) || false,
-		}));
+		})) || [];
+
+		// Get next cursor (ID of the last post)
+		const nextCursor = hasNextPage && posts.length > 0 ? posts[posts.length - 1].id : undefined;
 
 		return {
 			posts,
-			totalCount: count || 0,
+			totalCount: posts.length, // For cursor pagination, we don't have total count
+			nextCursor,
+			hasNextPage,
 		};
 	} catch (error) {
 		console.error("Fetch posts error:", error);

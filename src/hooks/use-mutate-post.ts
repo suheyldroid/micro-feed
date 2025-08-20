@@ -1,24 +1,47 @@
 import { useAuth } from "@/contexts/auth-context";
 import { createPostAction, deletePostAction, updatePostAction, type PostsResponse } from "@/lib/actions/posts";
-import type { FilterType, Post, PostFormData } from "@/types";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { FilterType, PostExtended, PostFormData } from "@/types";
+import { useMutation, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useQueryStates } from "nuqs";
 
 interface UseMutatePostOptions {
 	onSuccess?: () => void;
 }
 
-export function useMutatePost({ onSuccess }: UseMutatePostOptions) {
+export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 	const { user } = useAuth();
 	const queryClient = useQueryClient();
 
 	// URL query state'leri al
-	const [{ search, filter }] = useQueryStates({
+	const [{ search }] = useQueryStates({
 		search: { defaultValue: "", serialize: (value) => value, parse: (value) => value },
 		filter: { defaultValue: "all" as FilterType, serialize: (value) => value, parse: (value) => value as FilterType },
 	});
 
-	const queryKey = ["posts", user?.id, search, filter];
+	// Tüm filter'lar için query key'leri oluştur
+	const allQueryKeys = [
+		["posts", user?.id, search, "all" as FilterType],
+		["posts", user?.id, search, "mine" as FilterType],
+		["posts", user?.id, search, "liked" as FilterType],
+	];
+
+	// Helper function to update infinite query data
+	const updateInfiniteQueryData = (
+		queryKey: string[],
+		updateFn: (posts: PostExtended[]) => PostExtended[]
+	) => {
+		queryClient.setQueryData(queryKey, (oldData: InfiniteData<PostsResponse>) => {
+			if (!oldData) return oldData;
+
+			return {
+				...oldData,
+				pages: oldData.pages.map(page => ({
+					...page,
+					posts: updateFn(page.posts),
+				})),
+			};
+		});
+	};
 
 	// Create post mutation
 	const createPostMutation = useMutation({
@@ -27,17 +50,22 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions) {
 			if (!result.success) {
 				throw new Error(result.error || "Failed to create post");
 			}
-			return result.data!;
+			if (!result.data) {
+				throw new Error("No data returned from create post");
+			}
+			return result.data;
 		},
 		onSuccess: (newPost) => {
-			// Update cache by adding new post to the beginning
-			queryClient.setQueryData(
-				queryKey,
-				(oldData: PostsResponse) => ({
-					...oldData,
-					posts: [newPost, ...oldData.posts],
-				})
-			);
+			// Update all relevant infinite queries
+			allQueryKeys.forEach(queryKey => {
+				const [, , , filterType] = queryKey;
+				
+				// Only add to queries that should include this post
+				if (filterType === "all" || (filterType === "mine" && newPost.author_id === user?.id)) {
+					updateInfiniteQueryData(queryKey, (posts) => [newPost, ...posts]);
+				}
+			});
+			
 			onSuccess?.();
 		},
 	});
@@ -49,19 +77,21 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions) {
 			if (!result.success) {
 				throw new Error(result.error || "Failed to update post");
 			}
-			return result.data!;
+			if (!result.data) {
+				throw new Error("No data returned from update post");
+			}
+			return result.data;
 		},
 		onSuccess: (updatedPost) => {
-			// Update cache by replacing the post
-			queryClient.setQueryData(
-				queryKey,
-				(oldData: PostsResponse) => ({
-					...oldData,
-					posts: oldData.posts.map((post: Post) =>
-						post.id === updatedPost.id ? { ...updatedPost, is_liked: post.is_liked, like_count: post.like_count, likes: post.likes } : post
-					),
-				})
-			);
+			// Update all infinite queries
+			allQueryKeys.forEach(queryKey => {
+				updateInfiniteQueryData(queryKey, (posts) =>
+					posts.map((post: PostExtended) =>
+						post.id === updatedPost.id ? { ...updatedPost, isLiked: post.isLiked, like_count: post.like_count, likes: post.likes } : post
+					)
+				);
+			});
+			
 			onSuccess?.();
 		},
 	});
@@ -75,15 +105,13 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions) {
 			}
 			return postId;
 		},
-		onSuccess: (_, deletedPostId) => {
-			// Update cache by removing the deleted post
-			queryClient.setQueryData(
-				queryKey,
-				(oldData: PostsResponse) => ({
-					...oldData,
-					posts: oldData.posts.filter((post: Post) => post.id !== deletedPostId),
-				})
-			);
+		onSuccess: (deletedPostId) => {
+			// Remove from all infinite queries
+			allQueryKeys.forEach(queryKey => {
+				updateInfiniteQueryData(queryKey, (posts) =>
+					posts.filter((post: PostExtended) => post.id !== deletedPostId)
+				);
+			});
 		},
 	});
 

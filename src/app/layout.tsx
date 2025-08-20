@@ -1,7 +1,9 @@
-import { AuthProvider } from "@/contexts/auth-context";
-import type { Metadata } from "next";
+import { Providers } from "@/components/providers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+// Force dynamic rendering to ensure auth state is fresh
+export const dynamic = "force-dynamic";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -13,11 +15,6 @@ const geistMono = Geist_Mono({
 	subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-	title: "Micro Feed",
-	description: "A simple social media feed application",
-};
-
 export default function RootLayout({
 	children,
 }: Readonly<{
@@ -28,7 +25,7 @@ export default function RootLayout({
 			<body
 				className={`${geistSans.variable} ${geistMono.variable} antialiased`}
 			>
-				<AuthProvider>{children}</AuthProvider>
+				<Providers>{children}</Providers>
 			</body>
 		</html>
 	);

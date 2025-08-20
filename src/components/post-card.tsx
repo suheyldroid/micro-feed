@@ -4,55 +4,56 @@ import { ConfirmModal } from "@/components/confirm-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Post } from "@/types";
+import { useAuth } from "@/contexts/auth-context";
+import { useLike } from "@/hooks/use-like";
+import { useMutatePost } from "@/hooks/use-mutate-post";
+import { deletePostAction } from "@/lib/actions/posts";
+import type { PostExtended } from "@/types";
 import { formatDistanceToNow } from "date-fns";
 import { Edit, Heart, MoreHorizontal, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 interface PostCardProps {
-	post: Post;
-	currentUserId: string;
-	onLike: (postId: string) => void;
-	onUnlike: (postId: string) => void;
-	onEdit: (post: Post) => void;
-	onDelete: (postId: string) => void;
-	isLikeLoading?: boolean;
+	post: PostExtended;
 }
 
-export function PostCard({
-	post,
-	currentUserId,
-	onLike,
-	onUnlike,
-	onEdit,
-	onDelete,
-	isLikeLoading = false,
-}: PostCardProps) {
+export function PostCard({ post }: PostCardProps) {
+	const { user } = useAuth();
+	const { toggleLike, isLoading: isLikeLoading } = useLike();
+	const { deletePost: mutateDeletePost } = useMutatePost({});
+
 	const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-	const isOwner = post.authorId === currentUserId;
-	const isLiked = post.likes.includes(currentUserId);
+	const isOwner = post.author_id === user?.id;
+	const isLiked = post.isLiked;
 	const likeCount = post.likes.length;
 
-	const handleLikeToggle = () => {
-		if (isLiked) {
-			onUnlike(post.id);
-		} else {
-			onLike(post.id);
-		}
+	const handleLikeClick = () => {
+		toggleLike(post);
 	};
 
 	const handleEdit = () => {
-		onEdit(post);
+		// This will be handled by parent component
+		// We could emit an event or use a global state
+		console.log("Edit post:", post.id);
 	};
 
-	const handleDelete = () => {
-		onDelete(post.id);
+	const handleDelete = async () => {
+		try {
+			const result = await deletePostAction(post.id);
+			if (result.success) {
+				mutateDeletePost(post.id);
+			} else {
+				console.error("Error deleting post:", result.error);
+			}
+		} catch (error) {
+			console.error("Error deleting post:", error);
+		}
 	};
 
 	return (
@@ -64,14 +65,17 @@ export function PostCard({
 						<div className="flex items-start justify-between">
 							<div className="space-y-1">
 								<div className="flex items-center gap-2">
-									<span className="font-semibold">{post.authorName}</span>
-									<span className="text-muted-foreground text-sm">
-										@{post.authorUsername}
-									</span>
+									<span className="font-semibold">@{post.author.username}</span>
 								</div>
 								<span className="text-muted-foreground text-sm">
-									{formatDistanceToNow(post.createdAt, { addSuffix: true })}
-									{post.updatedAt > post.createdAt && " (edited)"}
+									{post.created_at &&
+										formatDistanceToNow(new Date(post.created_at), {
+											addSuffix: true,
+										})}
+									{post.created_at &&
+										post.updated_at &&
+										new Date(post.updated_at) > new Date(post.created_at) &&
+										" (edited)"}
 								</span>
 							</div>
 
@@ -110,7 +114,7 @@ export function PostCard({
 							<Button
 								variant="ghost"
 								size="sm"
-								onClick={handleLikeToggle}
+								onClick={handleLikeClick}
 								disabled={isLikeLoading}
 								className={`flex items-center gap-2 ${
 									isLiked ? "text-red-500 hover:text-red-600" : ""

@@ -3,6 +3,7 @@
 import { SearchBar } from "@/components/search-bar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
+import { logout } from "@/lib/actions/auth";
 import type { FilterType } from "@/types";
 import { LogOut, Plus } from "lucide-react";
 
@@ -21,7 +22,7 @@ export function Toolbar({
 	onFilterChange,
 	onCreatePost,
 }: ToolbarProps) {
-	const { user, logout } = useAuth();
+	const { user } = useAuth();
 
 	return (
 		<div className="sticky top-0 z-10 space-y-4 p-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -30,7 +31,7 @@ export function Toolbar({
 					<h1 className="text-2xl font-bold">Micro Feed</h1>
 					{user && (
 						<span className="text-sm text-muted-foreground">
-							Welcome, {user.name}
+							Welcome, @{user.username}
 						</span>
 					)}
 				</div>

@@ -2,63 +2,75 @@
 
 import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
+import { useMutatePost } from "@/hooks/use-mutate-post";
+import { postSchema } from "@/lib/validations";
 import type { Post, PostFormData } from "@/types";
-import { useEffect, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
 
 interface ComposerProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: (data: PostFormData) => void;
 	editingPost?: Post;
-	isLoading?: boolean;
 }
 
 export function Composer({
 	open,
 	onOpenChange,
-	onSubmit,
 	editingPost,
-	isLoading = false,
 }: ComposerProps) {
-	const [content, setContent] = useState("");
+	const { user } = useAuth();
+	const { createPost, updatePost, isCreating, isUpdating } = useMutatePost({
+		onSuccess: () => {
+			onOpenChange(false);
+			form.reset();
+		},
+	});
+
 	const isEditing = !!editingPost;
 	const maxChars = 280;
+
+	const form = useForm<PostFormData>({
+		resolver: zodResolver(postSchema),
+		defaultValues: {
+			content: "",
+		},
+	});
+
+	const content = form.watch("content");
 	const remainingChars = maxChars - content.length;
 
 	useEffect(() => {
 		if (editingPost) {
-			setContent(editingPost.content);
+			form.setValue("content", editingPost.content);
 		} else {
-			setContent("");
+			form.reset({ content: "" });
 		}
-	}, [editingPost]);
+	}, [editingPost, form]);
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
+	const handleSubmit = async (data: PostFormData) => {
+		if (!user) return;
 
-		if (content.trim() && content.length <= maxChars) {
-			onSubmit({ content: content.trim() });
-			if (!isEditing) {
-				setContent("");
-			}
+		if (editingPost) {
+			updatePost({ postId: editingPost.id, data });
+		} else {
+			createPost(data);
 		}
 	};
 
 	const handleClose = () => {
 		onOpenChange(false);
-		if (!isEditing) {
-			setContent("");
-		}
+		form.reset();
 	};
-
-	const isValid = content.trim().length > 0 && content.length <= maxChars;
 
 	return (
 		<Dialog open={open} onOpenChange={handleClose}>
@@ -68,16 +80,20 @@ export function Composer({
 						{isEditing ? "Edit Post" : "Create New Post"}
 					</DialogTitle>
 				</DialogHeader>
-				<form onSubmit={handleSubmit} className="space-y-4">
+				<form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
 					<div className="space-y-2">
 						<Textarea
 							placeholder="What's on your mind?"
-							value={content}
-							onChange={(e) => setContent(e.target.value)}
+							{...form.register("content")}
 							className="min-h-[120px] resize-none"
 							maxLength={maxChars}
 							autoFocus
 						/>
+						{form.formState.errors.content && (
+							<p className="text-sm text-red-500">
+								{form.formState.errors.content.message}
+							</p>
+						)}
 						<div className="flex justify-between items-center text-sm">
 							<span
 								className={`${
@@ -97,12 +113,15 @@ export function Composer({
 							type="button"
 							variant="outline"
 							onClick={handleClose}
-							disabled={isLoading}
+							disabled={isCreating || isUpdating}
 						>
 							Cancel
 						</Button>
-						<Button type="submit" disabled={!isValid || isLoading}>
-							{isLoading
+						<Button
+							type="submit"
+							disabled={!form.formState.isValid || isCreating || isUpdating}
+						>
+							{isCreating || isUpdating
 								? isEditing
 									? "Updating..."
 									: "Posting..."

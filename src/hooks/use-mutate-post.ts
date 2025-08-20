@@ -1,6 +1,10 @@
 import { useAuth } from "@/contexts/auth-context";
-import { createPostAction, deletePostAction, updatePostAction } from "@/lib/actions/posts";
-import type { PostFormData } from "@/types";
+import {
+	createPostAction,
+	deletePostAction,
+	updatePostAction,
+} from "@/lib/actions/posts";
+import type { PostFormData } from "@/lib/validations";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
@@ -16,11 +20,9 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 	const invalidatePostsQueries = useCallback(() => {
 		queryClient.invalidateQueries({
 			queryKey: ["posts", user?.id],
-			exact: false
+			exact: false,
 		});
 	}, [queryClient, user?.id]);
-
-
 
 	// Create post mutation
 	const createPostMutation = useMutation({
@@ -43,7 +45,13 @@ export function useMutatePost({ onSuccess }: UseMutatePostOptions = {}) {
 
 	// Update post mutation
 	const updatePostMutation = useMutation({
-		mutationFn: async ({ postId, data }: { postId: string; data: PostFormData }) => {
+		mutationFn: async ({
+			postId,
+			data,
+		}: {
+			postId: string;
+			data: PostFormData;
+		}) => {
 			const result = await updatePostAction(postId, data);
 			if (!result.success) {
 				throw new Error(result.error || "Failed to update post");

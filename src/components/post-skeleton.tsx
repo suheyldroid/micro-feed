@@ -34,8 +34,9 @@ export function PostSkeleton() {
 
 export function PostSkeletonList({ count = 3 }: { count?: number }) {
 	// Generate stable keys based on timestamp and count to avoid index-based keys
-	const skeletonKeys = Array.from({ length: count }, (_, index) => 
-		`post-skeleton-${Date.now()}-${count}-${index}`
+	const skeletonKeys = Array.from(
+		{ length: count },
+		(_, index) => `post-skeleton-${Date.now()}-${count}-${index}`,
 	);
 
 	return (

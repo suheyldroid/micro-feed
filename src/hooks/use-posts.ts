@@ -37,7 +37,7 @@ export function usePosts() {
 	// Memoize query key for stability - use debounced search
 	const queryKey = useMemo(
 		() => ["posts", user?.id, debouncedSearch, filter] as const,
-		[user?.id, debouncedSearch, filter]
+		[user?.id, debouncedSearch, filter],
 	);
 
 	const {
@@ -71,7 +71,7 @@ export function usePosts() {
 	});
 
 	// Flatten all pages
-	const posts = postsData?.pages.flatMap(page => page.posts) || [];
+	const posts = postsData?.pages.flatMap((page) => page.posts) || [];
 
 	// Get pagination info from first page (all pages have same totalCount)
 	const firstPage = postsData?.pages[0];

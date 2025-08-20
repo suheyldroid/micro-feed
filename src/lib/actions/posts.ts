@@ -3,7 +3,7 @@
 import {
 	createAuthenticatedSupabaseClient,
 	createServerSupabaseClient,
-} from "@/lib/supabase-server";
+} from "@/lib/supabase";
 import { type PostFormData, postSchema } from "@/lib/validations";
 import type { FilterType, PostExtended } from "@/types";
 import { revalidatePath } from "next/cache";
@@ -300,7 +300,8 @@ export async function fetchPostsServerAction({
 			throw new Error("User not found");
 		}
 
-		let query = supabase.from("posts").select(`
+		let query = supabase.from("posts").select(
+			`
       id,
       content,
       author_id,
@@ -314,7 +315,9 @@ export async function fetchPostsServerAction({
         user_id,
         created_at
       )
-    `, { count: 'exact' });
+    `,
+			{ count: "exact" },
+		);
 
 		// Apply filters
 		if (filter === "mine") {
@@ -332,7 +335,7 @@ export async function fetchPostsServerAction({
 		// Apply search - simple content search only for now
 		if (search?.trim()) {
 			// Simple content search - avoiding complex OR syntax issues
-			query = query.textSearch('content', search);
+			query = query.textSearch("content", search);
 		}
 
 		// Calculate offset for pagination
@@ -389,53 +392,5 @@ export async function fetchPostsServerAction({
 		throw new Error(
 			error instanceof Error ? error.message : "Failed to fetch posts",
 		);
-	}
-}
-
-// Server-side function to get user's posts (for server components)
-export async function getUserPosts(userId: string): Promise<PostExtended[]> {
-	try {
-		const supabase = await createServerSupabaseClient();
-
-		const { data: posts, error } = await supabase
-			.from("posts")
-			.select(
-				`
-				*,
-				author:profiles!posts_author_id_fkey (
-					id,
-					username
-				),
-				likes (
-					post_id,
-					user_id,
-					created_at
-				)
-			`,
-			)
-			.eq("author_id", userId)
-			.order("created_at", { ascending: false });
-
-		if (error) {
-			console.error("Error fetching user posts:", error);
-			return [];
-		}
-
-		// Transform to PostExtended type
-		return (
-			posts?.map((post) => ({
-				...post,
-				author: {
-					id: post.author.id,
-					username: post.author.username,
-				},
-				like_count: post.likes?.length || 0,
-				isLiked: post.likes?.some((like) => like.user_id === userId) || false,
-				likes: post.likes || [],
-			})) || []
-		);
-	} catch (error) {
-		console.error("Error in getUserPosts:", error);
-		return [];
 	}
 }

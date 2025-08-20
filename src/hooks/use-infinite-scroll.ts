@@ -25,7 +25,7 @@ export function useInfiniteScroll({
 	const handleIntersection = useCallback(
 		(entries: IntersectionObserverEntry[]) => {
 			const [entry] = entries;
-			
+
 			if (
 				entry?.isIntersecting &&
 				hasNextPage &&
@@ -35,7 +35,7 @@ export function useInfiniteScroll({
 			) {
 				isLoadingRef.current = true;
 				const result = fetchNextPage();
-				if (result && typeof result.finally === 'function') {
+				if (result && typeof result.finally === "function") {
 					result.finally(() => {
 						isLoadingRef.current = false;
 					});
@@ -44,12 +44,12 @@ export function useInfiniteScroll({
 				}
 			}
 		},
-		[hasNextPage, isFetchingNextPage, fetchNextPage, enabled]
+		[hasNextPage, isFetchingNextPage, fetchNextPage, enabled],
 	);
 
 	useEffect(() => {
 		const currentTarget = targetRef.current;
-		
+
 		if (!currentTarget || !enabled) {
 			return;
 		}

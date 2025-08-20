@@ -41,12 +41,10 @@ export function LoadMoreTrigger({
 		>
 			{error ? (
 				<div className="text-center">
-					<p className="text-destructive text-sm mb-2">Failed to load more posts</p>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={fetchNextPage}
-					>
+					<p className="text-destructive text-sm mb-2">
+						Failed to load more posts
+					</p>
+					<Button variant="outline" size="sm" onClick={fetchNextPage}>
 						Try Again
 					</Button>
 				</div>

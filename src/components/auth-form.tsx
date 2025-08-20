@@ -12,7 +12,6 @@ import { LoginForm } from "./forms/login-form";
 import { SignupForm } from "./forms/signup-form";
 
 export function AuthForm() {
-
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-background p-4">
 			<Card className="w-full max-w-md">

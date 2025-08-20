@@ -13,7 +13,15 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { logout } from "@/lib/actions/auth";
 import type { FilterType } from "@/types";
-import { LogOut, Monitor, Moon, MoreVertical, Plus, Sun, User } from "lucide-react";
+import {
+	LogOut,
+	Monitor,
+	Moon,
+	MoreVertical,
+	Plus,
+	Sun,
+	User,
+} from "lucide-react";
 import { useTheme } from "next-themes";
 
 interface ToolbarProps {
@@ -50,7 +58,7 @@ export function Toolbar({
 						<Plus className="h-4 w-4" />
 						New Post
 					</Button>
-					
+
 					{/* User Menu Dropdown */}
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -60,11 +68,10 @@ export function Toolbar({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-56">
 							<DropdownMenuLabel className="flex items-center gap-2">
-								<User className="h-4 w-4" />
-								@{user?.username}
+								<User className="h-4 w-4" />@{user?.username}
 							</DropdownMenuLabel>
 							<DropdownMenuSeparator />
-							
+
 							{/* Theme Selector */}
 							<DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
 								Theme
@@ -97,7 +104,7 @@ export function Toolbar({
 									</Button>
 								</div>
 							</div>
-							
+
 							<DropdownMenuSeparator />
 							<DropdownMenuItem onClick={logout} variant="destructive">
 								<LogOut className="mr-2 h-4 w-4" />

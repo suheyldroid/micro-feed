@@ -1,8 +1,7 @@
 "use server";
 
-import { createServerSupabaseClient } from "@/lib/supabase-server";
+import { createServerSupabaseClient } from "@/lib/supabase";
 import type { LoginFormData, SignupFormData } from "@/lib/validations";
-import type { Profile } from "@/types";
 
 import { revalidatePath } from "next/cache";
 
@@ -138,22 +137,6 @@ async function isUsernameAvailable(username: string) {
 		.single();
 
 	return !data && !error;
-}
-
-export async function getUserProfile(userId: string): Promise<Profile | null> {
-	const supabase = await createServerSupabaseClient();
-
-	const { data, error } = await supabase
-		.from("profiles")
-		.select("*")
-		.eq("id", userId)
-		.single();
-
-	if (error) {
-		console.error("Error fetching user profile:", error);
-	}
-
-	return data;
 }
 
 export async function getCurrentUser() {

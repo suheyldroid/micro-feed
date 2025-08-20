@@ -72,98 +72,100 @@ export function PostCard({ post, onEdit }: PostCardProps) {
 			>
 				<Card className="w-full">
 					<CardContent className="p-4">
-					<div className="space-y-3">
-						{/* Header */}
-						<div className="flex items-start justify-between">
-							<div className="space-y-1">
-								<div className="flex items-center gap-2">
-									<span className="font-semibold">@{post.author.username}</span>
+						<div className="space-y-3">
+							{/* Header */}
+							<div className="flex items-start justify-between">
+								<div className="space-y-1">
+									<div className="flex items-center gap-2">
+										<span className="font-semibold">
+											@{post.author.username}
+										</span>
+									</div>
+									<span className="text-muted-foreground text-sm">
+										{post.created_at &&
+											formatDistanceToNow(new Date(post.created_at), {
+												addSuffix: true,
+											})}
+										{post.created_at &&
+											post.updated_at &&
+											new Date(post.updated_at) > new Date(post.created_at) &&
+											" (edited)"}
+									</span>
 								</div>
-								<span className="text-muted-foreground text-sm">
-									{post.created_at &&
-										formatDistanceToNow(new Date(post.created_at), {
-											addSuffix: true,
-										})}
-									{post.created_at &&
-										post.updated_at &&
-										new Date(post.updated_at) > new Date(post.created_at) &&
-										" (edited)"}
-								</span>
+
+								{/* Owner Menu */}
+								{isOwner && (
+									<DropdownMenu>
+										<DropdownMenuTrigger asChild>
+											<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+												<MoreHorizontal className="h-4 w-4" />
+											</Button>
+										</DropdownMenuTrigger>
+										<DropdownMenuContent align="end">
+											<DropdownMenuItem onClick={handleEdit}>
+												<Edit className="mr-2 h-4 w-4" />
+												Edit
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												onClick={() => setShowDeleteConfirm(true)}
+												className="text-red-600"
+											>
+												<Trash2 className="mr-2 h-4 w-4" />
+												Delete
+											</DropdownMenuItem>
+										</DropdownMenuContent>
+									</DropdownMenu>
+								)}
 							</div>
 
-							{/* Owner Menu */}
-							{isOwner && (
-								<DropdownMenu>
-									<DropdownMenuTrigger asChild>
-										<Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-											<MoreHorizontal className="h-4 w-4" />
-										</Button>
-									</DropdownMenuTrigger>
-									<DropdownMenuContent align="end">
-										<DropdownMenuItem onClick={handleEdit}>
-											<Edit className="mr-2 h-4 w-4" />
-											Edit
-										</DropdownMenuItem>
-										<DropdownMenuItem
-											onClick={() => setShowDeleteConfirm(true)}
-											className="text-red-600"
-										>
-											<Trash2 className="mr-2 h-4 w-4" />
-											Delete
-										</DropdownMenuItem>
-									</DropdownMenuContent>
-								</DropdownMenu>
-							)}
-						</div>
+							{/* Content */}
+							<div className="text-sm leading-relaxed whitespace-pre-wrap">
+								{post.content}
+							</div>
 
-						{/* Content */}
-						<div className="text-sm leading-relaxed whitespace-pre-wrap">
-							{post.content}
-						</div>
-
-						{/* Actions */}
-						<div className="flex justify-end">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={handleLikeClick}
-								disabled={isLikeLoading}
-								className={`flex items-center gap-2 ${
-									isLiked ? "text-red-500 hover:text-red-600" : ""
-								}`}
-							>
-								<motion.div
-									animate={{
-										scale: isLiked ? 1.2 : 1,
-										color: isLiked ? "#ef4444" : "#6b7280"
-									}}
-									transition={{ duration: 0.2, ease: "easeInOut" }}
+							{/* Actions */}
+							<div className="flex justify-end">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={handleLikeClick}
+									disabled={isLikeLoading}
+									className={`flex items-center gap-2 ${
+										isLiked ? "text-red-500 hover:text-red-600" : ""
+									}`}
 								>
-									<Heart className={`h-4 w-4 transition-all duration-200 ${
-										isLiked ? "fill-current" : ""
-									} ${
-										isLikeLoading ? "animate-pulse" : ""
-									}`} />
-								</motion.div>
-								{likeCount > 0 && (
-									<motion.span
-										className="text-sm"
-										initial={{ opacity: 0, y: 10 }}
+									<motion.div
 										animate={{
-											opacity: 1,
-											y: 0,
-											color: isLiked ? "#ef4444" : "#6b7280"
+											scale: isLiked ? 1.2 : 1,
+											color: isLiked ? "#ef4444" : "#6b7280",
 										}}
 										transition={{ duration: 0.2, ease: "easeInOut" }}
 									>
-										{likeCount}
-									</motion.span>
-								)}
-							</Button>
+										<Heart
+											className={`h-4 w-4 transition-all duration-200 ${
+												isLiked ? "fill-current" : ""
+											} ${isLikeLoading ? "animate-pulse" : ""}`}
+										/>
+									</motion.div>
+									{likeCount > 0 && (
+										<motion.span
+											className="text-sm"
+											initial={{ opacity: 0, y: 10 }}
+											animate={{
+												opacity: 1,
+												y: 0,
+												color: isLiked ? "#ef4444" : "#6b7280",
+											}}
+											transition={{ duration: 0.2, ease: "easeInOut" }}
+										>
+											{likeCount}
+										</motion.span>
+									)}
+								</Button>
+							</div>
 						</div>
-					</div>
-				</CardContent>
-			</Card>
+					</CardContent>
+				</Card>
 			</motion.div>
 
 			{/* Delete Confirmation Modal */}

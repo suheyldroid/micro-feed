@@ -36,12 +36,15 @@ export async function createServerSupabaseClient() {
 // For use in server actions where we need the user context
 export async function createAuthenticatedSupabaseClient() {
 	const supabase = await createServerSupabaseClient();
-	
-	const { data: { user }, error } = await supabase.auth.getUser();
-	
+
+	const {
+		data: { user },
+		error,
+	} = await supabase.auth.getUser();
+
 	if (error || !user) {
 		throw new Error("Unauthorized");
 	}
-	
+
 	return { supabase, user };
 }

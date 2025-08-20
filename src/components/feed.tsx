@@ -17,23 +17,31 @@ export function Feed() {
 	const [composerOpen, setComposerOpen] = useState(false);
 	const [editingPost, setEditingPost] = useState<PostExtended | undefined>();
 
-	const { 
-		posts, 
-		isLoadingPosts, 
+	const {
+		posts,
+		isLoadingPosts,
 		isError,
 		error,
-		search, 
-		filter, 
-		fetchNextPage, 
-		hasNextPage, 
+		search,
+		filter,
+		fetchNextPage,
+		hasNextPage,
 		isFetchingNextPage,
-		refetch
+		refetch,
 	} = usePosts();
 
 	// nuqs query state setter'ları
 	const [, setQueryStates] = useQueryStates({
-		search: { defaultValue: "", serialize: (value) => value, parse: (value) => value },
-		filter: { defaultValue: "all" as FilterType, serialize: (value) => value, parse: (value) => value as FilterType },
+		search: {
+			defaultValue: "",
+			serialize: (value) => value,
+			parse: (value) => value,
+		},
+		filter: {
+			defaultValue: "all" as FilterType,
+			serialize: (value) => value,
+			parse: (value) => value as FilterType,
+		},
 	});
 
 	const handleCreatePost = () => {
@@ -65,7 +73,9 @@ export function Feed() {
 					{isError ? (
 						<div className="text-center py-12">
 							<div className="mb-4">
-								<p className="text-destructive font-medium">Failed to load posts</p>
+								<p className="text-destructive font-medium">
+									Failed to load posts
+								</p>
 								<p className="text-muted-foreground text-sm mt-1">
 									{error?.message || "Something went wrong. Please try again."}
 								</p>
@@ -90,15 +100,10 @@ export function Feed() {
 						</div>
 					) : (
 						<>
-							
 							{posts.map((post) => (
-								<PostCard
-									key={post.id}
-									post={post}
-									onEdit={handleEditPost}
-								/>
+								<PostCard key={post.id} post={post} onEdit={handleEditPost} />
 							))}
-							
+
 							{/* Infinite scroll trigger */}
 							<LoadMoreTrigger
 								hasNextPage={hasNextPage}

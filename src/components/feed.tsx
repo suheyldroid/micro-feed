@@ -52,7 +52,7 @@ export function Feed() {
 
 	return (
 		<div className="min-h-screen bg-background">
-			<div className="max-w-2xl mx-auto">
+			<div className="max-w-4xl mx-auto">
 				<Toolbar
 					searchValue={search}
 					onSearchChange={(value) => setQueryStates({ search: value })}

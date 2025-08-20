@@ -2,17 +2,17 @@
 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { useMutatePost } from "@/hooks/use-mutate-post";
-import { postSchema } from "@/lib/validations";
-import type { Post, PostFormData } from "@/types";
+import { type PostFormData, postSchema } from "@/lib/validations";
+import type { Post } from "@/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -23,11 +23,7 @@ interface ComposerProps {
 	editingPost?: Post;
 }
 
-export function Composer({
-	open,
-	onOpenChange,
-	editingPost,
-}: ComposerProps) {
+export function Composer({ open, onOpenChange, editingPost }: ComposerProps) {
 	const { user } = useAuth();
 	const { createPost, updatePost, isCreating, isUpdating } = useMutatePost({
 		onSuccess: () => {

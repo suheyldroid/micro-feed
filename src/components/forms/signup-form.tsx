@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { signup } from "@/lib/actions/auth";
 import type { SignupFormData } from "@/lib/validations";
 import { signupSchema } from "@/lib/validations";
@@ -9,13 +10,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
-interface SignupFormProps {
-	onSuccess?: () => void;
-}
-
-export function SignupForm({ onSuccess }: SignupFormProps) {
+export function SignupForm() {
 	const [loading, setLoading] = useState(false);
 	const [signupSuccess, setSignupSuccess] = useState(false);
+	const { toast } = useToast();
 
 	const form = useForm<SignupFormData>({
 		resolver: zodResolver(signupSchema),
@@ -35,29 +33,19 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 			if (result.success) {
 				setSignupSuccess(true);
 				form.reset();
-				onSuccess?.();
+				toast.success(
+					"Account created successfully!",
+					"Please check your email to verify your account.",
+				);
 			} else {
 				throw new Error(result.error);
 			}
 		} catch (error) {
 			setSignupSuccess(false);
-			const errorMessage = error instanceof Error ? error.message : "Signup failed";
+			const errorMessage =
+				error instanceof Error ? error.message : "An error occurred";
 
-			// Show user-friendly error messages
-			let friendlyMessage = errorMessage;
-			if (errorMessage.includes("User already registered")) {
-				friendlyMessage = "An account with this email already exists. Try logging in instead.";
-			} else if (errorMessage.includes("Username already exists")) {
-				friendlyMessage = "This username is already taken. Please choose a different one.";
-			} else if (errorMessage.includes("Password should be at least")) {
-				friendlyMessage = "Password must be at least 6 characters long.";
-			} else if (errorMessage.includes("Invalid email")) {
-				friendlyMessage = "Please enter a valid email address.";
-			}
-
-			form.setError("root", {
-				message: friendlyMessage,
-			});
+			toast.error("Signup failed", errorMessage);
 		} finally {
 			setLoading(false);
 		}
@@ -71,7 +59,8 @@ export function SignupForm({ onSuccess }: SignupFormProps) {
 						✅ Account created successfully!
 					</p>
 					<p className="text-sm text-green-700 mt-2">
-						Please check your email to confirm your account, then you can log in.
+						Please check your email to confirm your account, then you can log
+						in.
 					</p>
 				</div>
 				<Button

@@ -9,7 +9,7 @@ interface ProvidersProps {
 
 export async function Providers({ children }: ProvidersProps) {
 	const initialUser = await getCurrentUser();
-
+	console.log("initialUser", initialUser);
 	return (
 		<NuqsAdapter>
 			<ProvidersClient initialUser={initialUser}>{children}</ProvidersClient>

@@ -7,12 +7,9 @@ import { signup } from "@/lib/actions/auth";
 import type { SignupFormData } from "@/lib/validations";
 import { signupSchema } from "@/lib/validations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 export function SignupForm() {
-	const [loading, setLoading] = useState(false);
-	const [signupSuccess, setSignupSuccess] = useState(false);
 	const { toast } = useToast();
 
 	const form = useForm<SignupFormData>({
@@ -25,13 +22,9 @@ export function SignupForm() {
 	});
 
 	const handleSubmit = async (data: SignupFormData) => {
-		setLoading(true);
-		form.clearErrors("root");
-
 		try {
 			const result = await signup(data);
 			if (result.success) {
-				setSignupSuccess(true);
 				form.reset();
 				toast.success(
 					"Account created successfully!",
@@ -41,38 +34,12 @@ export function SignupForm() {
 				throw new Error(result.error);
 			}
 		} catch (error) {
-			setSignupSuccess(false);
 			const errorMessage =
 				error instanceof Error ? error.message : "An error occurred";
 
 			toast.error("Signup failed", errorMessage);
-		} finally {
-			setLoading(false);
 		}
 	};
-
-	if (signupSuccess) {
-		return (
-			<div className="text-center space-y-4">
-				<div className="p-4 bg-green-50 border border-green-200 rounded-md">
-					<p className="text-sm text-green-800">
-						✅ Account created successfully!
-					</p>
-					<p className="text-sm text-green-700 mt-2">
-						Please check your email to confirm your account, then you can log
-						in.
-					</p>
-				</div>
-				<Button
-					onClick={() => setSignupSuccess(false)}
-					variant="outline"
-					className="w-full"
-				>
-					Back to Sign Up
-				</Button>
-			</div>
-		);
-	}
 
 	return (
 		<form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -85,7 +52,7 @@ export function SignupForm() {
 					type="text"
 					placeholder="Choose a username"
 					{...form.register("username")}
-					disabled={loading}
+					disabled={form.formState.isSubmitting}
 				/>
 				{form.formState.errors.username && (
 					<p className="text-sm text-red-500">
@@ -103,7 +70,7 @@ export function SignupForm() {
 					type="email"
 					placeholder="Enter your email"
 					{...form.register("email")}
-					disabled={loading}
+					disabled={form.formState.isSubmitting}
 				/>
 				{form.formState.errors.email && (
 					<p className="text-sm text-red-500">
@@ -121,7 +88,7 @@ export function SignupForm() {
 					type="password"
 					placeholder="Choose a password"
 					{...form.register("password")}
-					disabled={loading}
+					disabled={form.formState.isSubmitting}
 				/>
 				{form.formState.errors.password && (
 					<p className="text-sm text-red-500">
@@ -136,8 +103,12 @@ export function SignupForm() {
 				</p>
 			)}
 
-			<Button type="submit" className="w-full" disabled={loading}>
-				{loading ? "Creating account..." : "Sign Up"}
+			<Button
+				type="submit"
+				className="w-full"
+				disabled={form.formState.isSubmitting}
+			>
+				{form.formState.isSubmitting ? "Creating account..." : "Sign Up"}
 			</Button>
 		</form>
 	);

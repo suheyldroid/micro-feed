@@ -7,11 +7,9 @@ import { login } from "@/lib/actions/auth";
 import type { LoginFormData } from "@/lib/validations";
 import { loginSchema } from "@/lib/validations";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 export function LoginForm() {
-	const [loading, setLoading] = useState(false);
 	const { toast } = useToast();
 
 	const form = useForm<LoginFormData>({
@@ -23,8 +21,6 @@ export function LoginForm() {
 	});
 
 	const handleSubmit = async (data: LoginFormData) => {
-		setLoading(true);
-
 		try {
 			const result = await login(data);
 			if (result.success) {
@@ -37,8 +33,6 @@ export function LoginForm() {
 				error instanceof Error ? error.message : "An error occurred";
 
 			toast.error("Login failed", errorMessage);
-		} finally {
-			setLoading(false);
 		}
 	};
 
@@ -53,7 +47,7 @@ export function LoginForm() {
 					type="email"
 					placeholder="Enter your email"
 					{...form.register("email")}
-					disabled={loading}
+					disabled={form.formState.isSubmitting}
 				/>
 				{form.formState.errors.email && (
 					<p className="text-sm text-red-500">
@@ -71,7 +65,7 @@ export function LoginForm() {
 					type="password"
 					placeholder="Enter your password"
 					{...form.register("password")}
-					disabled={loading}
+					disabled={form.formState.isSubmitting}
 				/>
 				{form.formState.errors.password && (
 					<p className="text-sm text-red-500">
@@ -80,8 +74,12 @@ export function LoginForm() {
 				)}
 			</div>
 
-			<Button type="submit" className="w-full" disabled={loading}>
-				{loading ? "Logging in..." : "Login"}
+			<Button
+				type="submit"
+				className="w-full"
+				disabled={form.formState.isSubmitting}
+			>
+				{form.formState.isSubmitting ? "Logging in..." : "Login"}
 			</Button>
 		</form>
 	);

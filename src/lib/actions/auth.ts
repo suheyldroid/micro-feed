@@ -133,10 +133,9 @@ async function isUsernameAvailable(username: string) {
 	const { data, error } = await supabase
 		.from("profiles")
 		.select("*")
-		.eq("username", username)
-		.single();
+		.eq("username", username);
 
-	return !data && !error;
+	return !data?.length && !error;
 }
 
 export async function getCurrentUser() {
@@ -145,7 +144,6 @@ export async function getCurrentUser() {
 		const {
 			data: { user },
 		} = await supabase.auth.getUser();
-
 		if (user) {
 			const { data: profile } = await supabase
 				.from("profiles")
